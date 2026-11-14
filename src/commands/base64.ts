@@ -9,6 +9,7 @@ async function textFrom(ctx: CliContext, value?: string): Promise<string> {
   return readStdinText(ctx);
 }
 
+/** `zt base64 encode` and `zt base64 decode`. */
 export const base64Plugin: CommandPlugin = {
   name: "base64",
   description: "Encode and decode base64 text",

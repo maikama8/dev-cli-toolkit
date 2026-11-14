@@ -1,16 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { buildCommitMessage, promptCommit, COMMIT_TYPES } from "../src/lib/commit.js";
-import type { Prompter } from "../src/types.js";
-import { parseJson, runCli } from "./helpers.js";
-
-function scripted(answers: string[]): Prompter {
-  const pending = [...answers];
-  return {
-    async ask(_question: string, fallback = "") {
-      return pending.shift() ?? fallback;
-    },
-  };
-}
+import { parseJson, runCli, scriptedPrompter } from "./helpers.js";
 
 describe("conventional commits", () => {
   it("builds a scoped message and a breaking-change footer", () => {
@@ -46,7 +39,7 @@ describe("conventional commits", () => {
   });
 
   it("prompts only for the answers that were not provided", async () => {
-    const answers = await promptCommit(scripted(["cli", "add doctor", "", ""]), {
+    const answers = await promptCommit(scriptedPrompter(["cli", "add doctor", "", ""]), {
       type: "feat",
     });
     expect(answers).toEqual({
@@ -78,7 +71,7 @@ describe("zt git commit", () => {
   it("asks the prompter when the subject is missing in a terminal", async () => {
     const result = await runCli(["git", "commit", "--dry-run"], {
       isTTY: true,
-      prompter: scripted(["fix", "", "handle empty token", "", ""]),
+      prompter: scriptedPrompter(["fix", "", "handle empty token", "", ""]),
     });
     expect(result.code).toBe(0);
     expect(result.out.trim()).toBe("fix: handle empty token");
@@ -88,5 +81,34 @@ describe("zt git commit", () => {
     const result = await runCli(["git", "commit", "--type", "feat", "--json"]);
     expect(result.code).toBe(1);
     expect(parseJson(result.out).error?.code).toBe("COMMIT_SUBJECT");
+  });
+
+  it("rejects a bad scope and a directory that is not a repository", async () => {
+    const scope = await runCli([
+      "git",
+      "commit",
+      "--type",
+      "feat",
+      "--scope",
+      "bad scope",
+      "--subject",
+      "x",
+      "--dry-run",
+      "--json",
+    ]);
+    expect(scope.code).toBe(1);
+    expect(parseJson(scope.out).error?.code).toBe("COMMIT_SCOPE");
+
+    const dir = await mkdtemp(join(tmpdir(), "zt-commit-"));
+    try {
+      const result = await runCli(
+        ["git", "commit", "--type", "chore", "--subject", "note", "--json"],
+        { cwd: dir },
+      );
+      expect(result.code).toBe(1);
+      expect(parseJson(result.out).error?.code).toBe("NOT_A_REPO");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });

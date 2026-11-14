@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
-import { parseConfig, peekConfigPath } from "../src/config.js";
+import { loadConfig, parseConfig, peekConfigPath } from "../src/config.js";
 import { CommandRegistry } from "../src/registry.js";
 import { resolveColor } from "../src/paint.js";
 import { version } from "../src/version.js";
@@ -36,6 +36,36 @@ describe("config and color", () => {
     expect(peekConfigPath(["--config=./a.json", "doctor"], {})).toBe("./a.json");
     expect(() => parseConfig("{")).toThrow(/invalid JSON/);
     expect(() => parseConfig('{"plugins":[1]}')).toThrow(/plugins/);
+    expect(() => parseConfig("[]")).toThrow(/JSON object/);
+    expect(() => parseConfig('{"color":"yes"}')).toThrow(/color/);
+    expect(() => parseConfig('{"git":[]}')).toThrow(/config.git/);
+    expect(() => parseConfig('{"git":{"baseBranch":""}}')).toThrow(/baseBranch/);
+    expect(() => parseConfig('{"git":{"protectedBranches":[1]}}')).toThrow(/protectedBranches/);
+    expect(() => parseConfig('{"http":{"timeoutMs":0}}')).toThrow(/timeoutMs/);
+    expect(() => parseConfig('{"doctor":{"minVersions":{"node":"18"}}}')).toThrow(/1\.2\.3/);
+    expect(parseConfig('{"doctor":{"minVersions":{"node":"20.0.0"}}}').doctor.minVersions).toEqual({
+      node: "20.0.0",
+    });
+    expect(() => peekConfigPath(["--config"], {})).toThrow(/missing path/);
+    expect(() => peekConfigPath(["--config="], {})).toThrow(/missing path/);
+    expect(peekConfigPath(["--", "--config", "x"], { ZT_CONFIG: "from-env.json" })).toBe("from-env.json");
+    expect(peekConfigPath(["doctor"], {})).toBeUndefined();
+  });
+
+  it("returns defaults when ~/.ztrc is missing and errors on a bad explicit path", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "zt-config-"));
+    dirs.push(dir);
+    const missing = await loadConfig({ homeDir: dir, cwd: dir });
+    expect(missing.path).toBeUndefined();
+    expect(missing.config.git.baseBranch).toBe("main");
+    await expect(loadConfig({ explicit: "missing.json", homeDir: dir, cwd: dir })).rejects.toThrow(
+      /not found/,
+    );
+    await writeFile(join(dir, ".ztrc"), "{");
+    await expect(loadConfig({ homeDir: dir, cwd: dir })).rejects.toThrow(/invalid JSON/);
+    await expect(loadConfig({ explicit: dir, homeDir: dir, cwd: dir })).rejects.toThrow(
+      /could not read config/,
+    );
   });
 
   it("turns color off for JSON, NO_COLOR, and a false config", () => {
@@ -48,6 +78,15 @@ describe("config and color", () => {
       resolveColor({ json: false, noColorEnv: false, isTTY: true, configColor: false }),
     ).toBe(false);
     expect(resolveColor({ json: false, noColorEnv: false, isTTY: false, colorFlag: true })).toBe(true);
+    expect(
+      resolveColor({
+        json: false,
+        noColorFlag: true,
+        colorFlag: true,
+        noColorEnv: false,
+        isTTY: true,
+      }),
+    ).toBe(false);
   });
 
   it("rejects a duplicate plugin name", () => {
@@ -112,5 +151,33 @@ describe("zt", () => {
     expect(colored.out).toContain("\u001b[");
     const plain = await runCli(["env", "check", "--json"], { cwd: dir, isTTY: true });
     expect(plain.out).not.toContain("\u001b[");
+
+    await writeFile(join(dir, "ztrc.json"), JSON.stringify({ color: true }));
+    const env = { ...process.env };
+    delete env.NO_COLOR;
+    const fromConfig = await runCli(["--config", "ztrc.json", "env", "check"], {
+      cwd: dir,
+      isTTY: false,
+      env,
+    });
+    expect(fromConfig.out).toContain("\u001b[");
+    const forcedOff = await runCli(["--config", "ztrc.json", "--no-color", "env", "check"], {
+      cwd: dir,
+      isTTY: true,
+      env,
+    });
+    expect(forcedOff.out).not.toContain("\u001b[");
+  });
+
+  it("prints a stack when ZT_DEBUG is set and stays quiet in JSON mode", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "zt-debug-"));
+    dirs.push(dir);
+    const env = { ...process.env, ZT_DEBUG: "1" };
+    const human = await runCli(["env", "check"], { cwd: dir, env });
+    expect(human.code).toBe(1);
+    expect(human.err).toContain("ZtError");
+    const json = await runCli(["env", "check", "--json"], { cwd: dir, env });
+    expect(json.err).not.toContain("ZtError");
+    expect(parseJson(json.out).error?.code).toBe("ENV_MISSING");
   });
 });

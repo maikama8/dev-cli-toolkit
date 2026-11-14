@@ -27,6 +27,19 @@ describe("doctor versions", () => {
       process.env,
     );
     expect(report).toMatchObject({ version: "3.12.3", status: "ok" });
+
+    const unreadable: ExecFile = async (command) => {
+      if (command === "python3") return { code: 0, stdout: "Python", stderr: "" };
+      if (command === "python") return { code: 0, stdout: "Python 3.11.0\n", stderr: "" };
+      return { code: 127, stdout: "", stderr: "" };
+    };
+    const next = await inspectTool(
+      { name: "python", commands: [["python3", "--version"], ["python", "--version"]] },
+      undefined,
+      unreadable,
+      process.env,
+    );
+    expect(next).toMatchObject({ version: "3.11.0", status: "ok" });
   });
 
   it("marks an old tool outdated and a missing tool missing", async () => {

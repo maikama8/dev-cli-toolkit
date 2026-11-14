@@ -4,6 +4,7 @@ import type { Paint } from "../paint.js";
 const METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"]);
 const MAX_BODY = 1_000_000;
 
+/** A request `zt http` is about to send. */
 export interface HttpRequest {
   method: string;
   url: string;
@@ -12,6 +13,7 @@ export interface HttpRequest {
   timeoutMs: number;
 }
 
+/** Status, timing, and body from one HTTP response. Bodies over 1 MB are truncated. */
 export interface HttpReport {
   method: string;
   url: string;
@@ -25,6 +27,10 @@ export interface HttpReport {
   truncated: boolean;
 }
 
+/**
+ * One argument is the URL (`POST` when a body is present, otherwise `GET`).
+ * Two arguments are the method and the URL.
+ */
 export function resolveRequest(
   methodOrUrl: string | undefined,
   maybeUrl: string | undefined,
@@ -35,6 +41,7 @@ export function resolveRequest(
   return { method: methodOrUrl, url: maybeUrl };
 }
 
+/** Parse repeated `Name: value` headers. */
 export function parseHeaders(raw: string[]): Record<string, string> {
   const headers: Record<string, string> = {};
   for (const entry of raw) {
@@ -48,6 +55,7 @@ export function parseHeaders(raw: string[]): Record<string, string> {
   return headers;
 }
 
+/** Send one `http:` or `https:` request. GET and HEAD do not send a body. */
 export async function performHttp(input: HttpRequest, fetchImpl: typeof fetch): Promise<HttpReport> {
   const method = input.method.toUpperCase();
   if (!METHODS.has(method)) throw new ZtError(`unsupported method ${method}`, "HTTP_METHOD");
@@ -105,12 +113,14 @@ export async function performHttp(input: HttpRequest, fetchImpl: typeof fetch): 
   };
 }
 
+/** Format a byte count as B, KB, or MB. */
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/** Format an HTTP report for a terminal. JSON bodies are pretty-printed. */
 export function formatHttp(report: HttpReport, paint: Paint, includeHeaders: boolean): string {
   const color = report.status >= 400 ? paint.red : report.status >= 300 ? paint.yellow : paint.green;
   const lines = [

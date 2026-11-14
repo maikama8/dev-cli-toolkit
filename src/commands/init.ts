@@ -8,6 +8,7 @@ import {
 import type { CliContext, CommandPlugin } from "../types.js";
 import { sharedOptions } from "./shared.js";
 
+/** `zt init` scaffolds a project from a built-in template. */
 export const initPlugin: CommandPlugin = {
   name: "init",
   description: "Scaffold a project from a template",

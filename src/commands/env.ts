@@ -3,6 +3,7 @@ import { diffEnv, envData, formatEnv, parseEnv, readEnvFile } from "../lib/env.j
 import type { CliContext, CommandPlugin } from "../types.js";
 import { sharedOptions } from "./shared.js";
 
+/** `zt env check` compares an env file with its example. */
 export const envPlugin: CommandPlugin = {
   name: "env",
   description: "Compare env files",

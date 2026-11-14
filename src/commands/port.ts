@@ -6,10 +6,11 @@ import {
   formatListeners,
   parsePort,
 } from "../lib/port.js";
-import { createReadlinePrompter } from "../lib/prompt.js";
+import { confirm } from "../lib/prompt.js";
 import type { CliContext, CommandPlugin } from "../types.js";
 import { sharedOptions } from "./shared.js";
 
+/** `zt port who` and `zt port kill`. */
 export const portPlugin: CommandPlugin = {
   name: "port",
   description: "Show or stop the process listening on a TCP port",
@@ -56,7 +57,7 @@ The current process and pid 1 are never signalled. On Windows this runs taskkill
       const number = parsePort(value);
       const owners = await findListeners(ctx, number);
       if (owners.length === 0) {
-        ctx.output.ok({ port: number, killed: [] }, formatKill(number, [], false));
+        ctx.output.ok({ port: number, killed: [] }, formatKill(number, []));
         return;
       }
       for (const owner of owners) assertKillable(owner.pid, ctx.selfPid);
@@ -69,14 +70,8 @@ The current process and pid 1 are never signalled. On Windows this runs taskkill
             { port: number, owners },
           );
         }
-        const prompter = ctx.prompter ?? createReadlinePrompter();
-        let answer = "n";
-        try {
-          answer = await prompter.ask(`kill ${preview} on port ${number}?`, "n");
-        } finally {
-          prompter.close?.();
-        }
-        if (!/^y(es)?$/i.test(answer.trim())) {
+        const allowed = await confirm(ctx, `kill ${preview} on port ${number}?`, "n");
+        if (!allowed) {
           ctx.output.ok({ port: number, killed: [] }, "left the process running");
           return;
         }
@@ -94,7 +89,7 @@ The current process and pid 1 are never signalled. On Windows this runs taskkill
       if (errors.length > 0) {
         ctx.output.fail("KILL_FAILED", errors.join("; "), { port: number, killed, errors });
       }
-      ctx.output.ok({ port: number, killed }, formatKill(number, killed, false));
+      ctx.output.ok({ port: number, killed }, formatKill(number, killed));
     });
   },
 };

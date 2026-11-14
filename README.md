@@ -1,22 +1,15 @@
 # zt
 
+Everyday developer tasks in one command: scaffold a project, check an env file, write a conventional commit, and inspect ports, HTTP, JSON, JWTs, and UUIDs.
+
 [![CI](https://github.com/maikama8/dev-cli-toolkit/actions/workflows/ci.yml/badge.svg)](https://github.com/maikama8/dev-cli-toolkit/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D18-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
-`zt` is a developer CLI from Zarachtech. It scaffolds a small project, diffs an env file against its example, writes a conventional commit, deletes local branches that are already merged, and does the small jobs that otherwise turn into a one-off shell function: who owns a port, what a URL returned, what is inside a JWT, a UUID, a JSON document, or a base64 string.
+![zt doctor on a machine with Node 22.23.4, npm 10.9.9, git 2.43.0, and Python 3.12.3. Docker is not installed.](docs/images/doctor.png)
 
-The binary is `zt`. The npm package name is `@zarachtech/zt`. It needs Node.js 18 or newer. There is one runtime dependency, [Commander](https://github.com/tj/commander.js).
-
-![zt doctor on a machine with Node, npm, git, and Python, and without Docker](docs/images/doctor.png)
-
-![zt env check flagging two blank keys and one extra key](docs/images/env-check.png)
-
-![zt init scaffolding a Node API](docs/images/init.png)
-
-![zt http timing a JSON response from a local server](docs/images/http.png)
-
-![zt jwt decode of an expired token, with the signature left unchecked](docs/images/jwt.png)
-
-Those pictures are the program's own stdout, from one run, drawn into a window so the colors survive on GitHub. Doctor saw Node 22.23.4, npm 10.9.9, git 2.43.0, and Python 3.12.3. Docker was not installed, so that row is missing. The env file had `DATABASE_URL` and `API_TOKEN` present but blank, plus a `DEBUG` key the example does not list. The HTTP picture is a request to a local server this repo started for the shot; the 22 ms is the time `fetch` took. The JWT really does expire at `2023-11-14T22:13:20.000Z`, and the signature was not checked.
+`zt` is the developer CLI from Zarachtech. The binary is `zt`. The npm package is `@zarachtech/zt`. It needs Node.js 18 or newer and has one runtime dependency, [Commander](https://github.com/tj/commander.js).
 
 ## Features
 
@@ -32,42 +25,14 @@ Those pictures are the program's own stdout, from one run, drawn into a window s
 - Commands are plugins. A file named in `~/.ztrc` can add another one.
 - `--json` prints a single document. In a terminal the same result is colored. `NO_COLOR` is honored unless you pass `--color`.
 
-## Tech stack
+## Quick start
 
-- Node.js 18 or newer, TypeScript, and Commander
-- Vitest
-- ESLint 9 with typescript-eslint
-- GitHub Actions on Linux, macOS, and Windows
-
-## Architecture
-
-```mermaid
-flowchart TD
-  argv[argv]
-  bin[zt binary]
-  cli[cli runner]
-  cfg["~/.ztrc"]
-  reg[command registry]
-  builtins[built-in commands]
-  plugins[user plugins]
-  lib[command logic]
-  out[stdout]
-
-  argv --> bin --> cli
-  cfg --> cli
-  cli --> reg
-  reg --> builtins
-  reg --> plugins
-  builtins --> lib
-  lib --> out
-  plugins --> out
+```bash
+npm install -g @zarachtech/zt
+zt --help
 ```
 
-The runner loads config, builds a context, and hands the root command to every plugin. A plugin calls `register` and adds a Commander command. The work of each command lives in a function that does not print: parsing an env file, choosing merged branches, reading `ss` output, decoding a JWT. The command prints that result once. Tests call the functions directly, and a smaller set drives `run()` with a temp directory, a stand-in for `execFile`, or a local HTTP server.
-
-`--json` changes the printer, not the function. A success is `{ "ok": true, "data": ... }`. A failure is `{ "ok": false, "error": { "code", "message" }, "data": ... }` and a non-zero exit. The document goes to stdout either way, so a script can pipe it.
-
-## Getting started
+From a checkout:
 
 ```bash
 git clone https://github.com/maikama8/dev-cli-toolkit.git
@@ -78,14 +43,7 @@ npm run build
 node dist/bin.js --help
 ```
 
-`npm link` puts `zt` on your `PATH`. After the package is installed from a registry, the binary name is the same:
-
-```bash
-npm install -g @zarachtech/zt
-zt --help
-```
-
-`make test`, `make lint`, `make typecheck`, and `make build` wrap the npm scripts. CI does not use `make`, because the Windows runner does not have it.
+`npm link` puts `zt` on your `PATH`. `make test`, `make lint`, `make typecheck`, and `make build` wrap the npm scripts. CI does not use `make`, because the Windows runner does not have it.
 
 ## Configuration
 
@@ -93,7 +51,7 @@ zt --help
 
 Relative plugin paths are resolved from the directory that contains the config file.
 
-[`examples/ztrc.json`](examples/ztrc.json) is the annotated shape:
+[`examples/ztrc.json`](examples/ztrc.json) is the shape:
 
 ```json
 {
@@ -122,10 +80,12 @@ Relative plugin paths are resolved from the directory that contains the config f
 | `git.baseBranch` | `main` | Base branch for `zt git cleanup` |
 | `git.protectedBranches` | `main`, `master`, `develop` | Never deleted by cleanup, even when merged |
 | `http.timeoutMs` | `10000` | Request timeout. `--timeout` overrides it |
-| `doctor.minVersions` | node 18, npm 9, git 2.30 | Below this, doctor reports `outdated` |
+| `doctor.minVersions` | node 18, npm 9, git 2.30 | Below this, doctor reports `outdated`. A map in the file replaces these defaults |
 | `plugins` | empty | Absolute or relative paths of plugin modules |
 
-`NO_COLOR` set to any non-empty value turns color off. `--color` turns it back on. `--json` never prints color. Color is also off when stdout is not a terminal.
+`NO_COLOR` set to any non-empty value turns color off. `--color` turns it back on. `--json` never prints color. Color is also off when stdout is not a terminal, unless config or `--color` forces it on.
+
+`ZT_DEBUG=1` prints an error stack on stderr. It does nothing when `--json` is set.
 
 ## Command reference
 
@@ -133,7 +93,25 @@ Global flags, on the root command and on every leaf: `--json`, `--color`, `--no-
 
 `zt --json env check` and `zt env check --json` both print JSON.
 
+| Command | Purpose |
+| --- | --- |
+| `zt init` | Scaffold a node-api, react-app, or python-api project |
+| `zt env check` | Compare `.env` with `.env.example` |
+| `zt git commit` | Write a conventional commit |
+| `zt git cleanup` | Delete local branches already merged into the base |
+| `zt git changelog` | Render those commits as markdown |
+| `zt port who` | Show the process listening on a TCP port |
+| `zt port kill` | Stop that process |
+| `zt http` | Print status, timing, size, and a JSON body |
+| `zt json` | Format, minify, or pick a value out of a document |
+| `zt base64` | Encode or decode base64 and base64url |
+| `zt jwt decode` | Read a JWT without checking the signature |
+| `zt uuid` | Generate or validate a UUID |
+| `zt doctor` | Report node, npm, git, python, and docker |
+
 ### `zt init [template] [directory]`
+
+![zt init scaffolding a Node API](docs/images/init.png)
 
 Templates:
 
@@ -159,6 +137,8 @@ The Node and Python servers do not load a `.env` file. They read the process env
 
 ### `zt env check`
 
+![zt env check flagging two blank keys and one extra key](docs/images/env-check.png)
+
 ```text
 $ zt env check
 .env compared with .env.example
@@ -170,7 +150,7 @@ extra    DEBUG
 2 problems
 ```
 
-Exit code 1, because a blank value is still unset for most programs. `PORT` was present and non-empty, so it is not listed. `DEBUG` is extra: it is reported and does not fail the command. `--strict` fails on extra keys too.
+Exit code 1, because a blank value is still unset for most programs. `PORT` was present and non-empty, so it is not listed. `DEBUG` is extra: it is reported and does not fail the command. `--strict` fails on extra keys too. In the picture above, `DATABASE_URL` and `API_TOKEN` were present but blank.
 
 Flags: `--env <path>` (default `.env`), `--example <path>` (default `.env.example`).
 
@@ -268,6 +248,8 @@ Only TCP listeners are considered. A UDP socket is left alone.
 
 ### `zt http [method] <url>`
 
+![zt http timing a JSON response from a local server](docs/images/http.png)
+
 ```text
 $ zt http http://127.0.0.1:35763/health
 GET http://127.0.0.1:35763/health
@@ -278,6 +260,8 @@ GET http://127.0.0.1:35763/health
   "ok": true
 }
 ```
+
+The picture is a request to a local server this repo started for the shot. The 22 ms is the time `fetch` took.
 
 One argument is the URL. A body (`-d` / `--data`) with one argument uses `POST`. Two arguments are the method and the URL: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, or `HEAD`.
 
@@ -318,6 +302,8 @@ hello
 
 ### `zt jwt decode [token]`
 
+![zt jwt decode of an expired token, with the signature left unchecked](docs/images/jwt.png)
+
 ```text
 $ zt jwt decode < token.txt
 header
@@ -335,7 +321,7 @@ signature not verified
 expired
 ```
 
-The token is three base64url segments. The header and payload are decoded and printed. The signature is not verified, not checked against a key, and not printed back. `exp` in the past prints `expired`. `nbf` in the future prints `not valid yet`. Do not treat the payload as authenticated.
+The token is three base64url segments. The header and payload are decoded and printed. The signature is not verified, not checked against a key, and not printed back. `exp` in the past prints `expired`. `nbf` in the future prints `not valid yet`. The token in the picture expires at `2023-11-14T22:13:20.000Z`. Do not treat the payload as authenticated.
 
 ### `zt uuid`
 
@@ -363,6 +349,34 @@ docker  -        missing
 
 Python tries `python3`, then `python`. A tool that is older than `doctor.minVersions` is `outdated` and the minimum is printed next to it. The command exits 0 when something is missing. `--strict` exits 1 unless every row is `ok`.
 
+## Architecture
+
+```mermaid
+flowchart TD
+  argv[argv]
+  bin[zt binary]
+  cli[cli runner]
+  cfg["~/.ztrc"]
+  reg[command registry]
+  builtins[built-in commands]
+  plugins[user plugins]
+  lib[command logic]
+  out[stdout]
+
+  argv --> bin --> cli
+  cfg --> cli
+  cli --> reg
+  reg --> builtins
+  reg --> plugins
+  builtins --> lib
+  lib --> out
+  plugins --> out
+```
+
+The runner loads config, builds a context, and hands the root command to every plugin. A plugin calls `register` and adds a Commander command. The work of each command lives in a function that does not print: parsing an env file, choosing merged branches, reading `ss` output, decoding a JWT. The command prints that result once. Tests call the functions directly, and a smaller set drives `run()` with a temp directory, a stand-in for `execFile`, or a local HTTP server.
+
+`--json` changes the printer, not the function. A success is `{ "ok": true, "data": ... }`. A failure is `{ "ok": false, "error": { "code", "message" }, "data": ... }` and a non-zero exit. The document goes to stdout either way, so a script can pipe it.
+
 ## Project structure
 
 ```text
@@ -375,12 +389,12 @@ dev-cli-toolkit/
 ├── test/                      # vitest, temp dirs, stand-in processes
 ├── examples/ztrc.json
 ├── examples/plugin.mjs
-├── docs/images/               # the screenshots above
+├── docs/images/               # screenshots from a live zt run
 ├── scripts/termshot.py        # redraws those screenshots from a pty
-└── .github/workflows/ci.yml
+└── .github/workflows/ci.yml   # Linux, macOS, and Windows
 ```
 
-The template strings live in `src/lib/templates.ts`, so the published package does not need to copy a directory of fixtures.
+The template strings live in `src/lib/templates.ts`, so the published package does not need to copy a directory of fixtures. Changes are recorded in [CHANGELOG.md](CHANGELOG.md).
 
 ## Testing
 
@@ -394,13 +408,13 @@ node dist/bin.js --version
 
 GitHub Actions (`.github/workflows/ci.yml`) runs that list on `ubuntu-latest`, `macos-latest`, and `windows-latest` for Node.js 22, on pushes to `main` and on pull requests.
 
-The suite covers env parsing (quotes, `export`, inline comments, a BOM), the three scaffolds including `node --check` on the generated server, conventional messages and the prompt, changelog grouping, a real git repository for commit / cleanup / changelog, `lsof` / `ss` / Windows `netstat` text, a refusal to kill pid 1 or the current process, HTTP against a local server, JSON paths, base64 and base64url, JWT expiry without a signature check, UUID v4, doctor version comparison, config shape, the plugin registry, and `--json` / `--help` / `--version`.
+The suite covers env parsing (quotes, `export`, inline comments, a BOM), the three scaffolds including `node --check` on the generated server, conventional messages and the prompt, changelog grouping and revision ranges, a real git repository for commit / cleanup / changelog, cleanup confirmation, `lsof` / `ss` / Windows `netstat` text, a refusal to kill pid 1 or the current process, kill confirmation, HTTP against a local server, JSON paths, base64 and base64url, JWT expiry without a signature check, UUID v4, doctor version comparison, config shape, the plugin registry, plugin load failures, and `--json` / `--help` / `--version`.
 
 `zt port who` is also pointed at a server the test itself is listening on. `zt port kill` is not: the listener and the test are the same pid, and the command refuses to signal itself. Kill is tested with a stand-in that records the pid.
 
 ## Extending with plugins
 
-A plugin is a module with `name`, `description`, and `register(program, ctx)`. [`examples/plugin.mjs`](examples/plugin.mjs):
+A plugin is a module with `name`, `description`, and `register(program, ctx)`. A default export is the usual shape. Named exports work too. [`examples/plugin.mjs`](examples/plugin.mjs):
 
 ```js
 export default {
@@ -440,7 +454,7 @@ import type { CommandPlugin } from "@zarachtech/zt";
 
 Importing the package does not run the CLI. The binary is `dist/bin.js`.
 
-## What it will not do
+## Limits
 
 `zt jwt decode` does not verify a signature. `zt port kill` stops a process on your machine, and only after `--yes` or a prompt. `zt git cleanup` deletes local branches that git already considers merged. It does not delete remote branches and it does not force-delete. `zt http` sends the URL you named; it does not add a proxy, a retry storm, or a way to reach a non-HTTP scheme.
 
@@ -453,12 +467,14 @@ Importing the package does not run the CLI. The binary is `dist/bin.js`.
 - A file of HTTP requests, still one response at a time.
 - Doctor rows you can ignore without `--strict` flipping the whole command.
 
+## Contributing
+
+Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the local checks, and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for how to take part. Report a vulnerability through the [security policy](SECURITY.md).
+
 ## Author
 
 **Abdulrasheed Oseni** ([@maikama8](https://github.com/maikama8)), Zarachtech.
 
-This repository is a public portfolio project.
-
 ## License
 
-[MIT](LICENSE). Copyright (c) 2026 Abdulrasheed Oseni.
+[MIT](LICENSE) © 2026 Abdulrasheed Oseni.

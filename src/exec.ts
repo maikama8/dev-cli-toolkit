@@ -1,23 +1,27 @@
 import { execFile as execFileCb } from "node:child_process";
 import { ZtError } from "./errors.js";
 
+/** The captured result of one child process. A missing binary is code 127. */
 export interface ExecResult {
   stdout: string;
   stderr: string;
   code: number;
 }
 
+/** Working directory and environment for {@link ExecFile}. */
 export interface ExecOptions {
   cwd?: string;
   env?: NodeJS.ProcessEnv;
 }
 
+/** Run a command without a shell and return its output instead of throwing on a non-zero exit. */
 export type ExecFile = (
   command: string,
   args: string[],
   options?: ExecOptions,
 ) => Promise<ExecResult>;
 
+/** `execFile` used by the real process. Output is capped at 10 MB. */
 export const defaultExecFile: ExecFile = (command, args, options = {}) =>
   new Promise((resolve, reject) => {
     execFileCb(

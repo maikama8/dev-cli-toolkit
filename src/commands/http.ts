@@ -4,10 +4,11 @@ import { positiveInt } from "../process.js";
 import type { CliContext, CommandPlugin } from "../types.js";
 import { sharedOptions } from "./shared.js";
 
-function collect(value: string, previous: string[]): string[] {
+function collectHeader(value: string, previous: string[]): string[] {
   return [...previous, value];
 }
 
+/** `zt http` prints status, timing, size, and a JSON body when the response is JSON. */
 export const httpPlugin: CommandPlugin = {
   name: "http",
   description: "Make an HTTP request and print status, timing, and JSON",
@@ -17,7 +18,7 @@ export const httpPlugin: CommandPlugin = {
       .description("Make an HTTP request and print status, timing, and JSON")
       .argument("[methodOrUrl]", "URL, or a method when a second argument is given")
       .argument("[url]", "URL when the first argument is a method")
-      .option("-H, --header <header>", "request header, repeatable (Name: value)", collect, [])
+      .option("-H, --header <header>", "request header, repeatable (Name: value)", collectHeader, [])
       .option("-d, --data <body>", "request body; switches a single-argument call to POST")
       .option("-t, --timeout <ms>", "timeout in milliseconds")
       .option("-i, --include", "print response headers")

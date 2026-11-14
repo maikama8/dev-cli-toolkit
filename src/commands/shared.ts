@@ -1,5 +1,9 @@
 import { Command } from "commander";
 
+/**
+ * Flags accepted on the root command and on every leaf.
+ * Leaves need their own copy so Commander does not reject a flag that follows the subcommand.
+ */
 export function sharedOptions(command: Command): Command {
   return command
     .option("--json", "print machine-readable JSON")

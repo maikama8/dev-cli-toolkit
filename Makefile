@@ -1,4 +1,4 @@
-.PHONY: test lint typecheck build
+.PHONY: test lint typecheck build shot
 
 test:
 	npm test
@@ -11,3 +11,6 @@ typecheck:
 
 build:
 	npm run build
+
+shot: build
+	python3 scripts/termshot.py

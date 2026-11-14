@@ -1,3 +1,7 @@
+/**
+ * Programmatic entry for `@zarachtech/zt`.
+ * Importing this module does not parse argv or exit the process.
+ */
 export { run, type RunOverrides } from "./cli.js";
 export { sharedOptions } from "./commands/shared.js";
 export { ZtError } from "./errors.js";

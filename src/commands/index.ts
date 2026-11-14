@@ -10,6 +10,7 @@ import { jwtPlugin } from "./jwt.js";
 import { portPlugin } from "./port.js";
 import { uuidPlugin } from "./uuid.js";
 
+/** Built-in commands, in help order. */
 export const builtinPlugins: CommandPlugin[] = [
   initPlugin,
   envPlugin,

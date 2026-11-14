@@ -3,6 +3,7 @@ import { isAbsolute, join } from "node:path";
 import { ZtError } from "./errors.js";
 import type { ZtConfig } from "./types.js";
 
+/** Built-in defaults used when `~/.ztrc` is missing. */
 export function defaultConfig(): ZtConfig {
   return {
     plugins: [],
@@ -23,6 +24,10 @@ export function defaultConfig(): ZtConfig {
   };
 }
 
+/**
+ * Read `--config` from argv, then `ZT_CONFIG`.
+ * Stops at `--`. A missing value is an error. An unset env var is not.
+ */
 export function peekConfigPath(argv: string[], env: NodeJS.ProcessEnv): string | undefined {
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index] ?? "";
@@ -44,6 +49,10 @@ export function peekConfigPath(argv: string[], env: NodeJS.ProcessEnv): string |
   return fromEnv && fromEnv.length > 0 ? fromEnv : undefined;
 }
 
+/**
+ * Parse a config document.
+ * Unknown keys are ignored. `doctor.minVersions`, when present, replaces the defaults.
+ */
 export function parseConfig(text: string, location = "config"): ZtConfig {
   let raw: unknown;
   try {
@@ -100,6 +109,7 @@ export function parseConfig(text: string, location = "config"): ZtConfig {
     const doctor = expectObject(record.doctor, "config.doctor");
     if ("minVersions" in doctor) {
       const mins = expectObject(doctor.minVersions, "config.doctor.minVersions");
+      const next: Record<string, string> = {};
       for (const [key, value] of Object.entries(mins)) {
         if (typeof value !== "string" || !/^\d+\.\d+\.\d+$/.test(value)) {
           throw new ZtError(
@@ -107,13 +117,18 @@ export function parseConfig(text: string, location = "config"): ZtConfig {
             "CONFIG_SHAPE",
           );
         }
+        next[key] = value;
       }
-      config.doctor.minVersions = { ...(mins as Record<string, string>) };
+      config.doctor.minVersions = next;
     }
   }
   return config;
 }
 
+/**
+ * Load config from an explicit path, or from `~/.ztrc`.
+ * A missing default file returns {@link defaultConfig}. A missing explicit path throws.
+ */
 export async function loadConfig(options: {
   explicit?: string;
   homeDir: string;

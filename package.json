@@ -1,6 +1,6 @@
 {
   "name": "@zarachtech/zt",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Zarachtech developer CLI: scaffold projects, check env files, and run everyday git, port, HTTP, and encoding tasks.",
   "type": "module",
   "bin": {
