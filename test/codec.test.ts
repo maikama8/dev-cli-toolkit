@@ -42,6 +42,14 @@ describe("json", () => {
     expect(() => parseJson("{")).toThrow(/invalid JSON/);
     expect(() => getPath({ items: [] }, "items.0")).toThrow(/path not found/);
   });
+
+  it("reports a missing file", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "zt-json-"));
+    dirs.push(dir);
+    const missing = await runCli(["json", "format", "missing.json", "--json"], { cwd: dir });
+    expect(missing.code).toBe(1);
+    expect(parseOut(missing.out).error?.code).toBe("NOT_FOUND");
+  });
 });
 
 describe("base64", () => {
@@ -59,6 +67,11 @@ describe("base64", () => {
     const bad = await runCli(["base64", "decode", "!!!!", "--json"]);
     expect(bad.code).toBe(1);
     expect(parseOut(bad.out).error?.code).toBe("BASE64_INVALID");
+    expect(decodeBase64("")).toBe("");
+    const fromStdin = await runCli(["base64", "encode"], { stdin: "hello" });
+    expect(fromStdin.out.trim()).toBe("aGVsbG8=");
+    const empty = await runCli(["base64", "decode", "--json"], { stdin: "" });
+    expect(parseOut(empty.out).error?.code).toBe("NO_INPUT");
   });
 });
 
@@ -87,6 +100,9 @@ describe("jwt", () => {
     expect(future.signaturePresent).toBe(false);
     expect(() => decodeJwt("only.two", now)).toThrow(/three dot-separated/);
     expect(() => decodeJwt(`${segment("nope")}.${segment({})}.x`, now)).toThrow(/header/);
+    expect(() => decodeJwt(`${segment({ alg: "none" })}.${segment({ exp: "soon" })}.x`, now)).toThrow(
+      /claim exp/,
+    );
   });
 
   it("prints the decoded token from the command", async () => {
@@ -119,5 +135,14 @@ describe("uuid", () => {
     const invalid = await runCli(["uuid", "validate", "nope", "--json"]);
     expect(invalid.code).toBe(1);
     expect(parseOut(invalid.out).error?.code).toBe("UUID_INVALID");
+
+    const nil = await runCli(["uuid", "validate", "00000000-0000-0000-0000-000000000000"]);
+    expect(nil.code).toBe(0);
+    expect(nil.out).toContain("valid nil uuid");
+
+    const zero = await runCli(["uuid", "--count", "0", "--json"]);
+    expect(parseOut(zero.out).error?.code).toBe("BAD_NUMBER");
+    const many = await runCli(["uuid", "generate", "--count", "101", "--json"]);
+    expect(parseOut(many.out).error?.code).toBe("UUID_COUNT");
   });
 });

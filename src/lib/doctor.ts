@@ -1,11 +1,13 @@
 import type { ExecFile } from "../exec.js";
 import type { Paint } from "../paint.js";
 
+/** A tool doctor can check, and the commands it tries in order. */
 export interface ToolSpec {
   name: string;
   commands: string[][];
 }
 
+/** One doctor row. `outdated` means the version is below the configured minimum. */
 export interface ToolReport {
   name: string;
   version: string | null;
@@ -13,6 +15,7 @@ export interface ToolReport {
   min?: string;
 }
 
+/** node, npm, git, python, and docker. Python tries `python3`, then `python`. */
 export const defaultTools: ToolSpec[] = [
   { name: "node", commands: [["node", "--version"]] },
   { name: "npm", commands: [["npm", "--version"]] },
@@ -21,12 +24,14 @@ export const defaultTools: ToolSpec[] = [
   { name: "docker", commands: [["docker", "--version"]] },
 ];
 
+/** Pull the first `major.minor.patch` out of a version command. */
 export function parseVersion(text: string): string | null {
   const match = text.match(/v?(\d+)\.(\d+)\.(\d+)/);
   if (!match) return null;
   return `${match[1]}.${match[2]}.${match[3]}`;
 }
 
+/** Compare `major.minor.patch` strings. Returns -1, 0, or 1. */
 export function compareVersions(left: string, right: string): number {
   const a = left.split(".").map((part) => Number(part));
   const b = right.split(".").map((part) => Number(part));
@@ -37,6 +42,7 @@ export function compareVersions(left: string, right: string): number {
   return 0;
 }
 
+/** Run a tool's commands until one prints a version. A missing binary is code 127. */
 export async function inspectTool(
   spec: ToolSpec,
   min: string | undefined,
@@ -56,6 +62,7 @@ export async function inspectTool(
   return { name: spec.name, version: null, status: "missing", min };
 }
 
+/** Inspect each tool. Minimums come from config, keyed by tool name. */
 export async function inspectTools(
   specs: ToolSpec[],
   mins: Record<string, string>,
@@ -69,6 +76,7 @@ export async function inspectTools(
   return reports;
 }
 
+/** Format doctor rows for a terminal, plus a ready count. */
 export function formatDoctor(reports: ToolReport[], paint: Paint): string {
   const nameWidth = Math.max(4, ...reports.map((report) => report.name.length));
   const versionWidth = Math.max(7, ...reports.map((report) => (report.version ?? "-").length));

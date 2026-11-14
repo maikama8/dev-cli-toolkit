@@ -1,6 +1,6 @@
 import { createServer, type Server } from "node:http";
 import { describe, expect, it } from "vitest";
-import { formatBytes, performHttp, resolveRequest } from "../src/lib/http.js";
+import { formatBytes, parseHeaders, performHttp, resolveRequest } from "../src/lib/http.js";
 import { parseJson, runCli } from "./helpers.js";
 
 describe("http helpers", () => {
@@ -15,9 +15,12 @@ describe("http helpers", () => {
     });
   });
 
-  it("formats byte sizes", () => {
+  it("formats byte sizes and headers", () => {
     expect(formatBytes(12)).toBe("12 B");
     expect(formatBytes(1536)).toBe("1.5 KB");
+    expect(formatBytes(2 * 1024 * 1024)).toBe("2.0 MB");
+    expect(parseHeaders(["Accept: text/plain"])).toEqual({ Accept: "text/plain" });
+    expect(() => parseHeaders(["nope"])).toThrow(/invalid header/);
   });
 });
 
@@ -79,6 +82,27 @@ describe("zt http", () => {
     expect(report.body).toBe("plain");
     expect(report.json).toBeNull();
     expect(report.ms).toBeGreaterThanOrEqual(0);
+
+    let body: RequestInit["body"];
+    await performHttp(
+      { method: "GET", url: "https://example.com/a", headers: {}, body: "skip", timeoutMs: 50 },
+      async (_url, init) => {
+        body = init?.body;
+        return new Response("plain", { status: 200, statusText: "OK" });
+      },
+    );
+    expect(body).toBeUndefined();
+  });
+
+  it("rejects a missing URL, a bad method, a bad header, and a bad timeout", async () => {
+    const missing = await runCli(["http", "--json"]);
+    expect(parseJson(missing.out).error?.code).toBe("HTTP_URL");
+    const method = await runCli(["http", "TRACE", "https://example.com", "--json"]);
+    expect(parseJson(method.out).error?.code).toBe("HTTP_METHOD");
+    const header = await runCli(["http", "https://example.com", "--header", "nope", "--json"]);
+    expect(parseJson(header.out).error?.code).toBe("HTTP_HEADER");
+    const timeout = await runCli(["http", "https://example.com", "--timeout", "0", "--json"]);
+    expect(parseJson(timeout.out).error?.code).toBe("BAD_NUMBER");
   });
 });
 

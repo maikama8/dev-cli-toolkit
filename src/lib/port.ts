@@ -2,6 +2,7 @@ import { ZtError } from "../errors.js";
 import type { Paint } from "../paint.js";
 import type { CliContext } from "../types.js";
 
+/** One TCP listener bound to a port. */
 export interface PortOwner {
   command: string;
   pid: number;
@@ -9,12 +10,14 @@ export interface PortOwner {
   address: string;
 }
 
+/** Throw when `port` is outside 1..65535. */
 export function validatePort(port: number): void {
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new ZtError("port must be an integer from 1 to 65535", "BAD_PORT");
   }
 }
 
+/** Parse a decimal port argument. */
 export function parsePort(value: string): number {
   if (!/^\d+$/.test(value)) throw new ZtError(`invalid port "${value}"`, "BAD_PORT");
   const port = Number(value);
@@ -26,6 +29,7 @@ function hasPort(text: string, port: number): boolean {
   return new RegExp(`:${port}(?!\\d)`).test(text);
 }
 
+/** Read listeners from `lsof -nP -iTCP:<port> -sTCP:LISTEN`. */
 export function parseLsof(stdout: string, port: number): PortOwner[] {
   const owners: PortOwner[] = [];
   for (const line of stdout.split(/\r?\n/).slice(1)) {
@@ -45,6 +49,7 @@ export function parseLsof(stdout: string, port: number): PortOwner[] {
   return dedupe(owners);
 }
 
+/** Read listeners from `ss -ltnp`. Rows for other ports are ignored. */
 export function parseSs(stdout: string, port: number): PortOwner[] {
   const owners: PortOwner[] = [];
   for (const line of stdout.split(/\r?\n/)) {
@@ -62,6 +67,7 @@ export function parseSs(stdout: string, port: number): PortOwner[] {
   return dedupe(owners);
 }
 
+/** Read TCP listeners from Windows `netstat -ano -p tcp`. */
 export function parseNetstat(stdout: string, port: number): PortOwner[] {
   const owners: PortOwner[] = [];
   for (const line of stdout.split(/\r?\n/)) {
@@ -76,6 +82,11 @@ export function parseNetstat(stdout: string, port: number): PortOwner[] {
   return dedupe(owners);
 }
 
+/**
+ * Find TCP listeners on `port`.
+ * Linux tries `ss`, then `lsof` when `ss` is missing or lists the port without a pid.
+ * macOS uses `lsof`. Windows uses `netstat`.
+ */
 export async function findListeners(
   ctx: Pick<CliContext, "execFile" | "platform" | "env">,
   port: number,
@@ -94,8 +105,6 @@ export async function findListeners(
     if (ss.code === 0) {
       const owners = parseSs(ss.stdout, port);
       if (owners.length > 0 || !hasPort(ss.stdout, port)) return owners;
-    } else if (ss.code !== 127 && ss.code !== 0) {
-      // ss ran and failed for a reason other than "not installed". Try lsof next.
     }
     return readLsof(ctx, port);
   }
@@ -117,6 +126,7 @@ async function readLsof(
   return parseLsof(result.stdout, port);
 }
 
+/** Refuse pid 1, a non-positive pid, and the current process. */
 export function assertKillable(pid: number, selfPid: number): void {
   if (!Number.isInteger(pid) || pid <= 1) {
     throw new ZtError(`refusing to kill pid ${pid}`, "KILL_REFUSED");
@@ -126,6 +136,7 @@ export function assertKillable(pid: number, selfPid: number): void {
   }
 }
 
+/** Format `zt port who` for a terminal. */
 export function formatListeners(port: number, owners: PortOwner[], paint: Paint): string {
   if (owners.length === 0) return `nothing is listening on ${port}`;
   const lines = [`port ${port}`];
@@ -136,10 +147,10 @@ export function formatListeners(port: number, owners: PortOwner[], paint: Paint)
   return lines.join("\n");
 }
 
-export function formatKill(port: number, pids: number[], dryRun: boolean): string {
+/** Format `zt port kill` for a terminal. */
+export function formatKill(port: number, pids: number[]): string {
   if (pids.length === 0) return `nothing to kill on ${port}`;
-  const verb = dryRun ? "would kill" : "killed";
-  return pids.map((pid) => `${verb} pid ${pid} on port ${port}`).join("\n");
+  return pids.map((pid) => `killed pid ${pid} on port ${port}`).join("\n");
 }
 
 function dedupe(owners: PortOwner[]): PortOwner[] {

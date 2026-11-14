@@ -4,6 +4,7 @@ import { positiveInt } from "../process.js";
 import type { CliContext, CommandPlugin } from "../types.js";
 import { sharedOptions } from "./shared.js";
 
+/** `zt uuid` generates UUID v4 values. `zt uuid validate` checks one. */
 export const uuidPlugin: CommandPlugin = {
   name: "uuid",
   description: "Generate or validate UUIDs",

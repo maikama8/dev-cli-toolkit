@@ -1,6 +1,7 @@
 import { ZtError } from "../errors.js";
 import type { Prompter } from "../types.js";
 
+/** Conventional Commits types accepted by `zt git commit`. */
 export const COMMIT_TYPES = [
   "feat",
   "fix",
@@ -17,6 +18,7 @@ export const COMMIT_TYPES = [
 
 const TYPE_SET = new Set<string>(COMMIT_TYPES);
 
+/** The fields of a conventional commit message. */
 export interface CommitAnswers {
   type: string;
   scope: string;
@@ -25,6 +27,7 @@ export interface CommitAnswers {
   breaking: string;
 }
 
+/** Fill any missing commit fields by asking `prompter`. Provided fields are kept. */
 export async function promptCommit(
   prompter: Prompter,
   partial: Partial<CommitAnswers>,
@@ -44,6 +47,7 @@ export async function promptCommit(
   };
 }
 
+/** Build a conventional message. A breaking note adds `!` and a footer. */
 export function buildCommitMessage(input: CommitAnswers): string {
   const type = input.type.trim();
   if (!type) throw new ZtError("a type is required (pass --type, or run in a terminal)", "COMMIT_TYPE");

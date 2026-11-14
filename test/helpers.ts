@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { run, type RunOverrides } from "../src/cli.js";
+import type { Prompter } from "../src/types.js";
 
 const emptyHome = join(tmpdir(), "zt-empty-home");
 
@@ -25,6 +26,16 @@ export function capture() {
     },
     out: () => out,
     err: () => err,
+  };
+}
+
+/** A prompter that answers from `answers`, then uses the fallback. */
+export function scriptedPrompter(answers: string[]): Prompter {
+  const pending = [...answers];
+  return {
+    async ask(_question: string, fallback = "") {
+      return pending.shift() ?? fallback;
+    },
   };
 }
 

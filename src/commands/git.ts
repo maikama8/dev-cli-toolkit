@@ -12,13 +12,14 @@ import {
   readCommits,
   runGit,
 } from "../lib/git.js";
-import { createReadlinePrompter } from "../lib/prompt.js";
+import { confirm, createReadlinePrompter } from "../lib/prompt.js";
 import { ZtError } from "../errors.js";
 import { firstLine } from "../process.js";
 import type { CliContext, CommandPlugin } from "../types.js";
 import { sharedOptions } from "./shared.js";
 import type { Paint } from "../paint.js";
 
+/** `zt git commit`, `zt git cleanup`, and `zt git changelog`. */
 export const gitPlugin: CommandPlugin = {
   name: "git",
   description: "Conventional commits, merged-branch cleanup, and changelogs",
@@ -220,16 +221,6 @@ async function resolveAnswers(ctx: CliContext, opts: CommitFlags): Promise<Commi
     body: opts.body ?? "",
     breaking: opts.breaking ?? "",
   };
-}
-
-async function confirm(ctx: CliContext, question: string, fallback: string): Promise<boolean> {
-  const prompter = ctx.prompter ?? createReadlinePrompter();
-  try {
-    const answer = await prompter.ask(question, fallback);
-    return /^y(es)?$/i.test(answer.trim());
-  } finally {
-    prompter.close?.();
-  }
 }
 
 function formatCleanup(names: string[], dryRun: boolean, paint: Paint): string {

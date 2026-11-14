@@ -4,6 +4,7 @@ import { formatJson, getPath, minifyJson, parseJson } from "../lib/json-doc.js";
 import type { CliContext, CommandPlugin } from "../types.js";
 import { sharedOptions } from "./shared.js";
 
+/** `zt json format`, `zt json minify`, and `zt json get`. */
 export const jsonPlugin: CommandPlugin = {
   name: "json",
   description: "Format, minify, or pick a path out of a JSON document",

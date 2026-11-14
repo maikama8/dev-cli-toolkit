@@ -1,3 +1,7 @@
+/**
+ * An expected command failure.
+ * `emitted` means the message was already written, so the runner must not print it again.
+ */
 export class ZtError extends Error {
   readonly emitted: boolean;
 

@@ -1,3 +1,4 @@
+/** ANSI wrappers. Each method returns the text unchanged when color is off. */
 export interface Paint {
   bold(text: string): string;
   dim(text: string): string;
@@ -7,6 +8,7 @@ export interface Paint {
   cyan(text: string): string;
 }
 
+/** Build painters. `enabled` false returns the input text. */
 export function createPaint(enabled: boolean): Paint {
   const wrap = (code: string) => (text: string) =>
     enabled ? `\u001b[${code}m${text}\u001b[0m` : text;
@@ -20,6 +22,10 @@ export function createPaint(enabled: boolean): Paint {
   };
 }
 
+/**
+ * Decide whether to colorize.
+ * JSON and `--no-color` win, then `--color`, then `NO_COLOR`, then config, then the terminal.
+ */
 export function resolveColor(input: {
   json: boolean;
   colorFlag?: boolean;

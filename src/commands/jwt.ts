@@ -4,6 +4,7 @@ import { decodeJwt, formatJwt } from "../lib/jwt.js";
 import type { CliContext, CommandPlugin } from "../types.js";
 import { sharedOptions } from "./shared.js";
 
+/** `zt jwt decode` prints a token without checking its signature. */
 export const jwtPlugin: CommandPlugin = {
   name: "jwt",
   description: "Decode a JWT without verifying its signature",

@@ -37,6 +37,7 @@ NAME=Ada Lovelace # author
 
   it("rejects a line that is not an assignment", () => {
     expect(() => parseEnv("NOT VALID\n")).toThrow(/line 1/);
+    expect(() => parseEnv("1BAD=1\n")).toThrow(/invalid env name/);
   });
 });
 
