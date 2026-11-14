@@ -21,14 +21,5 @@ Thumbs.db
 .vscode/
 .idea/
 
-.cursor/
-.cursorrules
-AGENTS.md
-CLAUDE.md
-.aider*
-.aider.conf.yml
-.continue/
-.github/copilot-instructions.md
-
 docs/images/captured.txt
 test/.tmp-plugin-*/
