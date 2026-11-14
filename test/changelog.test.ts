@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseConventional, parseGitLog, renderChangelog } from "../src/lib/changelog.js";
+import { commitRange, parseConventional, parseGitLog, renderChangelog } from "../src/lib/changelog.js";
 
 const log = [
   "abc1234\x1ffeat(api): add health route\x1fGET /health returns ok\x1e",
@@ -27,5 +27,12 @@ describe("changelog", () => {
 
   it("says when the range is empty", () => {
     expect(renderChangelog([])).toContain("No commits in range.");
+  });
+
+  it("builds a revision range", () => {
+    expect(commitRange()).toBeUndefined();
+    expect(commitRange("v1.0.0")).toBe("v1.0.0..HEAD");
+    expect(commitRange("v1.0.0", "v1.1.0")).toBe("v1.0.0..v1.1.0");
+    expect(commitRange(undefined, "v1.1.0")).toBe("v1.1.0");
   });
 });

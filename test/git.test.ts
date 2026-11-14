@@ -2,8 +2,8 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { branchesToDelete, parseBranchList } from "../src/lib/git.js";
-import { git, initRepo, parseJson, runCli } from "./helpers.js";
+import { assertBranchName, assertRev, branchesToDelete, parseBranchList } from "../src/lib/git.js";
+import { git, initRepo, parseJson, runCli, scriptedPrompter } from "./helpers.js";
 
 const dirs: string[] = [];
 
@@ -18,6 +18,8 @@ describe("branch selection", () => {
       "feature/login",
       "old-fix",
     ]);
+    expect(() => assertBranchName("a..b")).toThrow(/refusing/);
+    expect(() => assertRev("-evil")).toThrow(/invalid revision/);
   });
 });
 
@@ -88,6 +90,54 @@ describe("zt git", () => {
     expect(names).not.toContain("feature/login");
     expect(names).toContain("wip");
     expect(names).toContain("main");
+  });
+
+  it("limits a changelog to a range and asks before deleting branches", async () => {
+    const { dir, env } = await initRepo();
+    dirs.push(dir);
+    await writeFile(join(dir, "a.txt"), "a\n");
+    await git(dir, env, ["add", "a.txt"]);
+    await git(dir, env, ["commit", "-m", "chore: initial"]);
+    const first = (await git(dir, env, ["rev-parse", "HEAD"])).trim();
+    await writeFile(join(dir, "b.txt"), "b\n");
+    await git(dir, env, ["add", "b.txt"]);
+    await git(dir, env, ["commit", "-m", "feat: second"]);
+    const second = (await git(dir, env, ["rev-parse", "HEAD"])).trim();
+
+    const ranged = await runCli(["git", "changelog", "--from", first, "--to", second], {
+      cwd: dir,
+      env,
+    });
+    expect(ranged.code).toBe(0);
+    expect(ranged.out).toContain("second");
+    expect(ranged.out).not.toContain("initial");
+
+    await git(dir, env, ["checkout", "-b", "feature/login"]);
+    await git(dir, env, ["checkout", "main"]);
+    await git(dir, env, ["merge", "feature/login"]);
+
+    const blocked = await runCli(["git", "cleanup", "--json"], { cwd: dir, env });
+    expect(blocked.code).toBe(1);
+    expect(parseJson(blocked.out).error?.code).toBe("CLEANUP_CONFIRM");
+
+    const declined = await runCli(["git", "cleanup"], {
+      cwd: dir,
+      env,
+      isTTY: true,
+      prompter: scriptedPrompter(["n"]),
+    });
+    expect(declined.code).toBe(0);
+    expect(declined.out).toContain("left branches in place");
+    expect(await git(dir, env, ["branch"])).toContain("feature/login");
+
+    const badBase = await runCli(["git", "cleanup", "--base", "nope", "--dry-run", "--json"], {
+      cwd: dir,
+      env,
+    });
+    expect(parseJson(badBase.out).error?.code).toBe("GIT_BASE");
+
+    const badRev = await runCli(["git", "changelog", "--from", "-evil", "--json"], { cwd: dir, env });
+    expect(parseJson(badRev.out).error?.code).toBe("GIT_REV");
   });
 
   it("refuses cleanup outside a repository", async () => {

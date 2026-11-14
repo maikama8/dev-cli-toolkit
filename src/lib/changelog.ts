@@ -1,9 +1,11 @@
+/** One record from `git log`, before conventional-commit parsing. */
 export interface LogCommit {
   hash: string;
   subject: string;
   body: string;
 }
 
+/** A commit grouped for the changelog. `type` is `other` when the subject is not conventional. */
 export interface ParsedCommit {
   hash: string;
   type: string;
@@ -31,6 +33,7 @@ const SECTIONS: { type: string; title: string }[] = [
   { type: "other", title: "Other" },
 ];
 
+/** Split `git log --pretty=format:%h%x1f%s%x1f%b%x1e` into commits. */
 export function parseGitLog(stdout: string): LogCommit[] {
   const commits: LogCommit[] = [];
   for (const record of stdout.split("\x1e")) {
@@ -48,6 +51,7 @@ export function parseGitLog(stdout: string): LogCommit[] {
   return commits;
 }
 
+/** Read a conventional header and a `BREAKING CHANGE:` footer. */
 export function parseConventional(commit: LogCommit): ParsedCommit {
   const match = HEADER.exec(commit.subject);
   const footer = commit.body.match(/BREAKING CHANGE:\s*([\s\S]*)$/);
@@ -73,6 +77,7 @@ export function parseConventional(commit: LogCommit): ParsedCommit {
   };
 }
 
+/** Render commits as a markdown changelog under `Unreleased`. */
 export function renderChangelog(commits: ParsedCommit[]): string {
   const lines = ["# Changelog", "", "## Unreleased", ""];
   if (commits.length === 0) {
@@ -101,6 +106,7 @@ function bullet(commit: ParsedCommit, text: string): string {
   return `- ${scope}${text}${hash}`;
 }
 
+/** Build a `git log` revision range. Both ends omitted means the whole history. */
 export function commitRange(from?: string, to?: string): string | undefined {
   if (!from && !to) return undefined;
   if (from && to) return `${from}..${to}`;

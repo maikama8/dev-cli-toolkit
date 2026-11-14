@@ -2,6 +2,10 @@ import { decodeBase64 } from "./base64.js";
 import { ZtError } from "../errors.js";
 import type { Paint } from "../paint.js";
 
+/**
+ * A decoded JWT.
+ * The signature is reported as present or absent. It is never verified.
+ */
 export interface JwtReport {
   header: Record<string, unknown>;
   payload: Record<string, unknown>;
@@ -13,7 +17,7 @@ export interface JwtReport {
   issuedAt: string | null;
 }
 
-// The signature is reported as present or absent. It is never verified.
+/** Decode the header and payload. Does not check the signature, issuer, or audience. */
 export function decodeJwt(token: string, now: Date): JwtReport {
   const parts = token.trim().split(".");
   if (parts.length !== 3) throw new ZtError("a JWT has three dot-separated parts", "JWT_SHAPE");
@@ -35,6 +39,7 @@ export function decodeJwt(token: string, now: Date): JwtReport {
   };
 }
 
+/** Format a decoded JWT for a terminal, including expiry when `exp` is set. */
 export function formatJwt(report: JwtReport, paint: Paint): string {
   const lines = [paint.bold("header")];
   for (const [key, value] of Object.entries(report.header)) {

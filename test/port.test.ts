@@ -9,7 +9,7 @@ import {
   parseSs,
 } from "../src/lib/port.js";
 import type { ExecFile } from "../src/exec.js";
-import { parseJson, runCli } from "./helpers.js";
+import { parseJson, runCli, scriptedPrompter } from "./helpers.js";
 
 const lsof = `COMMAND   PID USER   FD   TYPE DEVICE SIZE/OFF NODE NAME
 node    4242 me    20u  IPv4  0x1      0t0  TCP *:3000 (LISTEN)
@@ -50,6 +50,46 @@ describe("port parsers", () => {
     };
     const owners = await findListeners({ execFile, platform: "linux", env: process.env }, 3000);
     expect(owners.map((owner) => owner.pid)).toEqual([4242]);
+  });
+
+  it("uses lsof when ss fails or lists the port without a pid", async () => {
+    const failed: ExecFile = async (command) => {
+      if (command === "ss") return { code: 1, stdout: "", stderr: "failed" };
+      if (command === "lsof") return { code: 0, stdout: lsof, stderr: "" };
+      return { code: 127, stdout: "", stderr: command };
+    };
+    expect(
+      (await findListeners({ execFile: failed, platform: "linux", env: process.env }, 3000))[0]?.pid,
+    ).toBe(4242);
+
+    const bare = "LISTEN 0 128 127.0.0.1:3000 0.0.0.0:*\n";
+    const vague: ExecFile = async (command) => {
+      if (command === "ss") return { code: 0, stdout: bare, stderr: "" };
+      if (command === "lsof") return { code: 0, stdout: lsof, stderr: "" };
+      return { code: 127, stdout: "", stderr: command };
+    };
+    expect(
+      (await findListeners({ execFile: vague, platform: "linux", env: process.env }, 3000))[0]?.pid,
+    ).toBe(4242);
+
+    const missing: ExecFile = async () => ({ code: 127, stdout: "", stderr: "not found" });
+    await expect(
+      findListeners({ execFile: missing, platform: "darwin", env: process.env }, 3000),
+    ).rejects.toThrow(/lsof/);
+
+    const win: ExecFile = async (command, args) => {
+      expect(command).toBe("netstat");
+      expect(args).toEqual(["-ano", "-p", "tcp"]);
+      return { code: 0, stdout: netstat, stderr: "" };
+    };
+    expect(
+      (await findListeners({ execFile: win, platform: "win32", env: process.env }, 3000))[0]?.pid,
+    ).toBe(4242);
+
+    const broken: ExecFile = async () => ({ code: 1, stdout: "", stderr: "netstat failed\n" });
+    await expect(
+      findListeners({ execFile: broken, platform: "win32", env: process.env }, 80),
+    ).rejects.toThrow(/netstat failed/);
   });
 });
 
@@ -116,5 +156,60 @@ describe("zt port", () => {
         server.close((err) => (err ? reject(err) : resolve()));
       });
     }
+  });
+
+  it("asks before killing and reports a failed signal", async () => {
+    const killed: number[] = [];
+    const execFile: ExecFile = async (command) => {
+      if (command === "ss") return { code: 0, stdout: ss, stderr: "" };
+      return { code: 127, stdout: "", stderr: command };
+    };
+    const empty: ExecFile = async () => ({ code: 0, stdout: "State\n", stderr: "" });
+    const none = await runCli(["port", "kill", "3000", "--yes"], {
+      platform: "linux",
+      execFile: empty,
+    });
+    expect(none.code).toBe(0);
+    expect(none.out).toContain("nothing to kill on 3000");
+
+    const declined = await runCli(["port", "kill", "3000"], {
+      platform: "linux",
+      execFile,
+      isTTY: true,
+      prompter: scriptedPrompter(["no"]),
+      kill: async (pid) => {
+        killed.push(pid);
+      },
+    });
+    expect(declined.code).toBe(0);
+    expect(declined.out).toContain("left the process running");
+    expect(killed).toEqual([]);
+
+    const accepted = await runCli(["port", "kill", "3000"], {
+      platform: "linux",
+      execFile,
+      isTTY: true,
+      prompter: scriptedPrompter(["yes"]),
+      kill: async (pid) => {
+        killed.push(pid);
+      },
+    });
+    expect(accepted.code).toBe(0);
+    expect(accepted.out).toContain("killed pid 4242");
+    expect(killed).toEqual([4242]);
+
+    const two = `COMMAND   PID USER   FD   TYPE DEVICE SIZE/OFF NODE NAME
+node    4242 me    20u  IPv4  0x1      0t0  TCP *:3000 (LISTEN)
+node    4243 me    21u  IPv4  0x2      0t0  TCP 127.0.0.1:3000 (LISTEN)
+`;
+    const failed = await runCli(["port", "kill", "3000", "--yes", "--json"], {
+      platform: "darwin",
+      execFile: async () => ({ code: 0, stdout: two, stderr: "" }),
+      kill: async (pid) => {
+        if (pid === 4243) throw new Error("busy");
+      },
+    });
+    expect(failed.code).toBe(1);
+    expect(parseJson(failed.out).error?.code).toBe("KILL_FAILED");
   });
 });

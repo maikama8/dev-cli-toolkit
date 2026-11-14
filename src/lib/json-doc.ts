@@ -1,6 +1,7 @@
 import { ZtError } from "../errors.js";
 import { stripBom } from "../process.js";
 
+/** Parse JSON, accepting a leading BOM. */
 export function parseJson(text: string): unknown {
   try {
     return JSON.parse(stripBom(text));
@@ -9,14 +10,17 @@ export function parseJson(text: string): unknown {
   }
 }
 
+/** Pretty-print a JSON value. */
 export function formatJson(value: unknown): string {
   return JSON.stringify(value, null, 2);
 }
 
+/** Print a JSON value on one line. */
 export function minifyJson(value: unknown): string {
   return JSON.stringify(value);
 }
 
+/** Walk a dotted path. A numeric segment indexes an array. */
 export function getPath(value: unknown, path: string): unknown {
   if (!path) return value;
   const parts = path.split(".");

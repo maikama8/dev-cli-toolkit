@@ -3,6 +3,11 @@ import { pathToFileURL } from "node:url";
 import { ZtError } from "../errors.js";
 import type { CommandPlugin } from "../types.js";
 
+/**
+ * Import plugin modules.
+ * A relative path is resolved from the config file's directory, or from `cwd` when there is no file.
+ * A module may use a default export or named `name` and `register` exports.
+ */
 export async function loadPlugins(
   specs: string[],
   configPath: string | undefined,

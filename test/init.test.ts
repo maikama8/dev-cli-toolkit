@@ -24,6 +24,12 @@ describe("project names", () => {
 });
 
 describe("zt init", () => {
+  it("requires a template name", async () => {
+    const result = await runCli(["init", "--json"]);
+    expect(result.code).toBe(1);
+    expect(parseJson(result.out).error?.code).toBe("TEMPLATE");
+  });
+
   it("lists templates", async () => {
     const result = await runCli(["init", "--list"]);
     expect(result.code).toBe(0);

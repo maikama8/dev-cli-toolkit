@@ -4,11 +4,13 @@ import type { Paint } from "../paint.js";
 import { stripBom } from "../process.js";
 import { ZtError } from "../errors.js";
 
+/** Keys in file order, and the last value for each key. */
 export interface EnvFile {
   order: string[];
   values: Map<string, string>;
 }
 
+/** How an env file differs from its example. `problems` counts missing and empty keys. */
 export interface EnvDiff {
   envPath: string;
   examplePath: string;
@@ -21,6 +23,10 @@ export interface EnvDiff {
 
 const NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
+/**
+ * Parse an env file.
+ * Accepts `export`, quotes, blank lines, `#` comments, and an inline comment on an unquoted value.
+ */
 export function parseEnv(text: string): EnvFile {
   const values = new Map<string, string>();
   const order: string[] = [];
@@ -54,6 +60,7 @@ export function parseEnv(text: string): EnvFile {
   return { order, values };
 }
 
+/** Compare `env` with `example`. Extra keys are reported and are not problems. */
 export function diffEnv(env: EnvFile, example: EnvFile, envPath: string, examplePath: string): EnvDiff {
   const missing: string[] = [];
   const empty: string[] = [];
@@ -75,6 +82,7 @@ export function diffEnv(env: EnvFile, example: EnvFile, envPath: string, example
   };
 }
 
+/** Format an env diff for a terminal. */
 export function formatEnv(diff: EnvDiff, paint: Paint): string {
   const lines = [`${diff.envPath} compared with ${diff.examplePath}`, ""];
   if (diff.missing.length === 0 && diff.empty.length === 0 && diff.extra.length === 0) {
@@ -90,6 +98,7 @@ export function formatEnv(diff: EnvDiff, paint: Paint): string {
   return lines.join("\n");
 }
 
+/** Read an env file relative to `cwd`. A missing file throws `ENV_MISSING`. */
 export async function readEnvFile(cwd: string, file: string): Promise<string> {
   const path = resolve(cwd, file);
   try {
@@ -101,6 +110,7 @@ export async function readEnvFile(cwd: string, file: string): Promise<string> {
   }
 }
 
+/** Attach the strict flag and whether the command should fail. */
 export function envData(diff: EnvDiff, strict: boolean): EnvDiff & { strict: boolean; failed: boolean } {
   const failed = diff.problems > 0 || (strict && diff.extra.length > 0);
   return { ...diff, strict, failed };

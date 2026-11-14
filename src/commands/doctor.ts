@@ -3,6 +3,7 @@ import { defaultTools, formatDoctor, inspectTools } from "../lib/doctor.js";
 import type { CliContext, CommandPlugin } from "../types.js";
 import { sharedOptions } from "./shared.js";
 
+/** `zt doctor` reports node, npm, git, python, and docker. */
 export const doctorPlugin: CommandPlugin = {
   name: "doctor",
   description: "Check the versions of common developer tools",

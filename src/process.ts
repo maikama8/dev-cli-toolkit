@@ -1,6 +1,7 @@
 import type { ExecFile } from "./exec.js";
 import { ZtError } from "./errors.js";
 
+/** Stop a pid. Windows runs `taskkill /F`. Other platforms send `SIGTERM`. */
 export async function defaultKill(
   pid: number,
   platform: NodeJS.Platform,
@@ -21,6 +22,7 @@ export async function defaultKill(
   }
 }
 
+/** First non-empty trimmed line, or an empty string. */
 export function firstLine(text: string): string {
   return text
     .split(/\r?\n/)
@@ -28,10 +30,12 @@ export function firstLine(text: string): string {
     .find(Boolean) ?? "";
 }
 
+/** Remove a leading UTF-8 BOM. */
 export function stripBom(text: string): string {
   return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
 }
 
+/** Parse a base-10 integer greater than zero. */
 export function positiveInt(value: string, label: string): number {
   if (!/^\d+$/.test(value)) {
     throw new ZtError(`${label} must be a positive integer`, "BAD_NUMBER");

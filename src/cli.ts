@@ -14,6 +14,7 @@ import { CommandRegistry } from "./registry.js";
 import type { CliContext, Prompter } from "./types.js";
 import { version } from "./version.js";
 
+/** Replacements used by tests. Omitted fields use the real process. */
 export interface RunOverrides {
   cwd?: string;
   env?: NodeJS.ProcessEnv;
@@ -31,6 +32,10 @@ export interface RunOverrides {
   prompter?: Prompter;
 }
 
+/**
+ * Run `zt` with `argv` (without `node` and the program name).
+ * Returns the exit code. Does not call `process.exit`.
+ */
 export async function run(argv: string[], overrides: RunOverrides = {}): Promise<number> {
   const stdout = overrides.stdout ?? process.stdout;
   const stderr = overrides.stderr ?? process.stderr;

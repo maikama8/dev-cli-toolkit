@@ -2,6 +2,7 @@ import type { Command } from "commander";
 import type { ExecFile } from "./exec.js";
 import type { Output } from "./output.js";
 
+/** The parsed `~/.ztrc` document. Unknown keys are dropped. */
 export interface ZtConfig {
   color?: boolean;
   plugins: string[];
@@ -17,11 +18,13 @@ export interface ZtConfig {
   };
 }
 
+/** One question and an answer. `close` releases the terminal when prompting is finished. */
 export interface Prompter {
   ask(question: string, fallback?: string): Promise<string>;
   close?(): void;
 }
 
+/** Everything a command can use. Commands print through `output`. */
 export interface CliContext {
   cwd: string;
   env: NodeJS.ProcessEnv;
@@ -40,6 +43,7 @@ export interface CliContext {
   prompter?: Prompter;
 }
 
+/** A built-in or user command. `register` adds Commander commands and must not parse argv itself. */
 export interface CommandPlugin {
   name: string;
   description: string;
