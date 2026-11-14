@@ -1,0 +1,62 @@
+{
+  "name": "@zarachtech/zt",
+  "version": "0.1.0",
+  "description": "Zarachtech developer CLI: scaffold projects, check env files, and run everyday git, port, HTTP, and encoding tasks.",
+  "type": "module",
+  "bin": {
+    "zt": "./dist/bin.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "prepack": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maikama8/dev-cli-toolkit.git"
+  },
+  "homepage": "https://github.com/maikama8/dev-cli-toolkit#readme",
+  "bugs": {
+    "url": "https://github.com/maikama8/dev-cli-toolkit/issues"
+  },
+  "keywords": [
+    "cli",
+    "developer-tools",
+    "scaffold",
+    "dotenv",
+    "git",
+    "zarachtech",
+    "zt"
+  ],
+  "author": "Abdulrasheed Oseni (https://github.com/maikama8)",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.16.0",
+    "@types/node": "^22.10.2",
+    "eslint": "^9.16.0",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.18.1",
+    "vitest": "^2.1.8"
+  }
+}
