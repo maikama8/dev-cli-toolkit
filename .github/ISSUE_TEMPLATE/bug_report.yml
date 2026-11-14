@@ -1,0 +1,44 @@
+name: Bug report
+description: Something in zt did the wrong thing
+title: "bug: "
+body:
+  - type: textarea
+    id: command
+    attributes:
+      label: Command
+      description: The full command, and what it printed.
+      placeholder: zt env check
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected
+      description: What you expected to happen.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: zt version
+      description: Output of `zt --version`.
+      placeholder: 1.0.0
+    validations:
+      required: true
+  - type: input
+    id: node
+    attributes:
+      label: Node.js version
+      placeholder: v22.0.0
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Linux
+        - macOS
+        - Windows
+    validations:
+      required: true
