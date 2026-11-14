@@ -1,0 +1,18 @@
+{
+  "color": true,
+  "git": {
+    "baseBranch": "main",
+    "protectedBranches": ["main", "master", "develop"]
+  },
+  "http": {
+    "timeoutMs": 10000
+  },
+  "doctor": {
+    "minVersions": {
+      "node": "18.0.0",
+      "npm": "9.0.0",
+      "git": "2.30.0"
+    }
+  },
+  "plugins": []
+}
