@@ -1,9 +1,11 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { parseJson, runCli } from "./helpers.js";
 
+const here = dirname(fileURLToPath(import.meta.url));
+const fixtures = join(here, "fixtures", "plugins");
 const dirs: string[] = [];
 
 afterEach(async () => {
@@ -11,24 +13,23 @@ afterEach(async () => {
 });
 
 async function temp(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), "zt-plugin-"));
+  const dir = await mkdtemp(join(here, ".tmp-plugin-"));
   dirs.push(dir);
   return dir;
+}
+
+function rel(dir: string, name: string): string {
+  return relative(dir, join(fixtures, name)).split("\\").join("/");
+}
+
+async function writeConfig(dir: string, name: string, plugin: string): Promise<void> {
+  await writeFile(join(dir, name), JSON.stringify({ plugins: [plugin] }));
 }
 
 describe("plugins", () => {
   it("loads a plugin from a path relative to the config file", async () => {
     const dir = await temp();
-    await writeFile(
-      join(dir, "ping.mjs"),
-      `export const name = "ping";
-export const description = "ping";
-export function register(program, ctx) {
-  program.command("ping").action(() => ctx.output.ok({ pong: true }, "pong"));
-}
-`,
-    );
-    await writeFile(join(dir, ".ztrc"), JSON.stringify({ plugins: ["./ping.mjs"] }));
+    await writeConfig(dir, ".ztrc", rel(dir, "ping.mjs"));
     const result = await runCli(["ping", "--json"], { homeDir: dir, cwd: dir });
     expect(result.code).toBe(0);
     expect(parseJson(result.out).data?.pong).toBe(true);
@@ -37,44 +38,28 @@ export function register(program, ctx) {
   it("reports a missing file, a bad shape, a duplicate name, and an unexpected throw", async () => {
     const dir = await temp();
 
-    await writeFile(join(dir, "missing.json"), JSON.stringify({ plugins: ["./nope.mjs"] }));
+    await writeConfig(dir, "missing.json", "./nope.mjs");
     const missing = await runCli(["--config", "missing.json", "--json"], { cwd: dir });
     expect(parseJson(missing.out).error?.code).toBe("PLUGIN_LOAD");
 
     await writeFile(join(dir, "bad.mjs"), "export default {\n");
-    await writeFile(join(dir, "bad.json"), JSON.stringify({ plugins: ["./bad.mjs"] }));
+    await writeConfig(dir, "bad.json", "./bad.mjs");
     const bad = await runCli(["--config", "bad.json", "--json"], { cwd: dir });
     expect(parseJson(bad.out).error?.code).toBe("PLUGIN_LOAD");
 
-    await writeFile(join(dir, "noname.mjs"), "export default { register() {} };\n");
-    await writeFile(join(dir, "noname.json"), JSON.stringify({ plugins: ["./noname.mjs"] }));
+    await writeConfig(dir, "noname.json", rel(dir, "noname.mjs"));
     const noname = await runCli(["--config", "noname.json", "--json"], { cwd: dir });
     expect(parseJson(noname.out).error?.code).toBe("PLUGIN_SHAPE");
 
-    await writeFile(join(dir, "noreg.mjs"), "export default { name: 'x' };\n");
-    await writeFile(join(dir, "noreg.json"), JSON.stringify({ plugins: ["./noreg.mjs"] }));
+    await writeConfig(dir, "noreg.json", rel(dir, "noreg.mjs"));
     const noreg = await runCli(["--config", "noreg.json", "--json"], { cwd: dir });
     expect(parseJson(noreg.out).error?.code).toBe("PLUGIN_SHAPE");
 
-    await writeFile(join(dir, "dup.mjs"), "export default { name: 'doctor', register() {} };\n");
-    await writeFile(join(dir, "dup.json"), JSON.stringify({ plugins: ["./dup.mjs"] }));
+    await writeConfig(dir, "dup.json", rel(dir, "dup.mjs"));
     const dup = await runCli(["--config", "dup.json", "--json"], { cwd: dir });
     expect(parseJson(dup.out).error?.code).toBe("PLUGIN_DUP");
 
-    await writeFile(
-      join(dir, "boom.mjs"),
-      `export default {
-  name: "boom",
-  description: "boom",
-  register(program) {
-    program.command("boom").action(() => {
-      throw new Error("boom");
-    });
-  },
-};
-`,
-    );
-    await writeFile(join(dir, "boom.json"), JSON.stringify({ plugins: ["./boom.mjs"] }));
+    await writeConfig(dir, "boom.json", rel(dir, "boom.mjs"));
     const boom = await runCli(["--config", "boom.json", "boom"], { cwd: dir });
     expect(boom.code).toBe(1);
     expect(boom.err).toContain("boom");
